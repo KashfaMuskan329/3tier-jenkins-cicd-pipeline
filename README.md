@@ -1,61 +1,97 @@
-# Docker MySQL Node.js React.js App
+# 3-Tier CI/CD Pipeline with Jenkins & Docker
 
-sample chnage to trigger the jenkins
+A full-stack 3-tier application (React, Node.js, MySQL) with a fully automated CI/CD pipeline built using **Jenkins**, **Docker & Docker Compose**, and **AWS EC2**. Every push to GitHub is picked up by Jenkins, which builds and deploys the updated containers to a live server — no manual steps involved.
 
-![App](https://github.com/madhurajayashanka/docker-mysql-nodejs-reactjs-app/raw/main/Thumbnail.png)
+---
 
-"Docker MySQL Node.js React.js App" is a comprehensive demonstration repo showcasing the capabilities of Docker and Docker Compose. With a focus on simplicity and efficiency, this project illustrates the integration of Docker containers for deploying a full-stack application.
+## 🏗️ Architecture
 
-## Setup
+```
+GitHub Repo
+     │  (push)
+     ▼
+Jenkins Server (AWS EC2)
+     │  1. Checkout latest code
+     │  2. SSH into App Server
+     ▼
+App Server (AWS EC2)
+     │  docker compose down
+     │  docker compose up -d --build
+     ▼
+ ┌─────────────┬──────────────┬──────────────┐
+ │  React      │  Node.js /   │  MySQL       │
+ │  Frontend   │  Express API │  Database    │
+ │  (port 3001)│  (port 3000) │  (port 3307) │
+ └─────────────┴──────────────┴──────────────┘
+```
 
-To set up the project, follow the steps below:
+Two separate EC2 instances are used: one dedicated to running **Jenkins**, and one dedicated to running the **application containers** — mirroring how build and deployment environments are typically separated in real-world DevOps setups.
 
-### Prerequisites
+---
 
-Before running the project, make sure you have the following installed:
+## 🛠️ Tech Stack
 
-- Docker: [Download and Install Docker](https://docs.docker.com/get-docker/)
+- **CI/CD:** Jenkins (Pipeline-as-Code / Jenkinsfile)
+- **Containerization:** Docker, Docker Compose
+- **Cloud:** AWS EC2 (2 instances), Security Groups
+- **Frontend:** React.js
+- **Backend:** Node.js, Express
+- **Database:** MySQL 5.7
+- **Deployment:** SSH-based automated deployment
+- **Version Control:** Git & GitHub
 
-### Installation
+---
 
-1. Clone the repository:
+## ⚙️ How the Pipeline Works
 
-   ```bash
-   git clone https://github.com/madhurajayashanka/docker-mysql-nodejs-reactjs-app.git
-   ```
+1. Code is pushed to the `main` branch on GitHub.
+2. Jenkins job checks out the latest commit.
+3. Jenkins connects to the App Server over SSH (using stored credentials).
+4. On the App Server, the pipeline pulls the latest code, tears down old containers, and rebuilds/starts new ones with `docker compose`.
+5. The updated app is live within minutes — no manual intervention required.
 
-2. Navigate to the project directory:
+---
 
-   ```bash
-   cd project-directory
-   ```
+## 🧩 Challenges & Solutions
 
-3. Download the `script.sql` file and place it in the project directory.
+Real issues encountered and resolved while building this pipeline:
 
-4. Run the following command to build and start the Docker containers:
+- **Jenkins repository signing key had expired.** Jenkins rotated its Debian/Ubuntu package signing key in December 2025; updated the local key to the current `2026` key per Jenkins' official migration guide.
+- **Jenkins failed to start after installation.** Root cause was a Java version mismatch — newer Jenkins releases require Java 21, while Java 17 was installed. Resolved by installing OpenJDK 21 and setting it as the default.
+- **Jenkins node went offline due to low disk space.** The `/tmp` partition (tmpfs) was too small on a `t3.micro` instance. Resolved by adjusting the Free Disk Space Monitor thresholds for the built-in node.
+- **`docker-compose: command not found` during deployment.** The App Server had the newer Docker Compose plugin (`docker compose`, no hyphen) rather than the standalone binary — updated the Jenkinsfile to use the correct syntax.
+- **`permission denied` connecting to the Docker daemon.** The deployment user wasn't part of the `docker` group at the time the SSH session started; added the user to the group and rebooted the instance to apply it cleanly.
+- **Frontend couldn't reach the backend API.** The frontend had `localhost:3000` hardcoded as the API base URL, which only works when frontend and backend share a browser context. Updated it to point to the App Server's public IP.
+- **Backend failing to connect to MySQL (`Access denied for user 'root'`).** The database credentials and database name in `docker-compose.yml` didn't match what the backend code expected. Resolved by explicitly setting matching environment variables (`DB_HOST`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`) for the backend service.
+- **React build failing on ESLint config error.** A newer ESLint version flagged an unrecognized key in the inherited `eslint-config-react-app` config. Resolved by disabling the ESLint plugin during the Docker build step.
 
-   ```bash
-   docker-compose up --build
-   ```
+---
 
-5. Login to MySQL using the specified port, username, and password:
+## 🚀 Live Demo
 
-   - Host: `localhost`
-   - Port: `3307`
-   - Username: `root`
-   - Password: `pass123`
+> Note: This is a personal learning/demo deployment running on a free-tier EC2 instance and may not always be live.
 
-   You can use a MySQL client such as [MySQL Workbench](https://www.mysql.com/products/workbench/) or [phpMyAdmin](https://www.phpmyadmin.net/) to log in to the MySQL server.
+Frontend: `http://<app-server-ip>:3001`
 
-6. Initialize the MySQL database by executing the `script.sql` file.
+---
 
-7. Access the application by opening the following URL in your web browser:
+## 🙏 Credit
 
-   ```
-   http://localhost:3001
-   ```
+This project started from a public starter template for a Dockerized React + Node.js + MySQL app. On top of it, I added:
+- A complete Jenkins CI/CD pipeline (Jenkinsfile)
+- A two-server AWS EC2 deployment architecture
+- SSH-based automated deployment
+- Fixed database connectivity, environment configuration, and build issues
 
-   This will take you to the ReactJS application interface where you can interact with the project.
+---
+
+## 📌 What This Project Demonstrates
+
+- Setting up and troubleshooting Jenkins from scratch on a Linux server
+- Writing a working Jenkins Pipeline (Jenkinsfile) for automated deployment
+- Configuring AWS EC2, Security Groups, and SSH-based access between servers
+- Debugging real Docker, networking, and database connectivity issues
+- Understanding the difference between SSH-based deployment and Jenkins master-agent architecture
 
 ## Usage
 
